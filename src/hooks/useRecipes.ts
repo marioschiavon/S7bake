@@ -35,7 +35,7 @@ export function useRecipes() {
         userId: row.user_id
       }));
 
-      setRecipes([...MOCK_RECIPES, ...dbRecipes]);
+      setRecipes(dbRecipes);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       setRecipes(MOCK_RECIPES);

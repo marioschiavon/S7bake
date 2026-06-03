@@ -29,7 +29,7 @@ export function useCategories() {
         name: row.name
       }));
 
-      setCategories([...MOCK_CATEGORIES, ...dbCategories]);
+      setCategories(dbCategories);
     } catch (error) {
       console.error('Error fetching categories:', error);
       // Fallback on error
