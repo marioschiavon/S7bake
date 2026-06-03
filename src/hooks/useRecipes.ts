@@ -1,98 +1,147 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { MOCK_RECIPES } from '../data/mockData';
 import type { Recipe } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 
 export function useRecipes() {
   const { user } = useAuth();
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>(MOCK_RECIPES);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRecipes = async () => {
+    if (!user) {
+      setRecipes(MOCK_RECIPES);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('bake_recipes')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      const dbRecipes: Recipe[] = data.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        categoryId: row.category_id,
+        yield: row.yield,
+        yieldUnit: row.yield_unit,
+        prepTimeMinutes: row.prep_time_minutes,
+        nodes: row.nodes,
+        userId: row.user_id
+      }));
+
+      setRecipes([...MOCK_RECIPES, ...dbRecipes]);
+    } catch (error) {
+      console.error('Error fetching recipes:', error);
+      setRecipes(MOCK_RECIPES);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Load recipes from local storage
-    const localRecipesStr = localStorage.getItem('s7bake_user_recipes');
-    let localRecipes: Recipe[] = [];
-    if (localRecipesStr) {
-      try {
-        localRecipes = JSON.parse(localRecipesStr);
-      } catch (e) {
-        console.error('Failed to parse local recipes', e);
-      }
-    }
-
-    // Combine mock recipes (public/templates) with the user's own recipes
-    const combined = [
-      ...MOCK_RECIPES,
-      ...(user ? localRecipes.filter(r => r.userId === user.id) : [])
-    ];
-    setRecipes(combined);
+    fetchRecipes();
   }, [user]);
 
-  const addRecipe = (recipe: Omit<Recipe, 'id' | 'userId'>) => {
+  const addRecipe = async (recipe: Omit<Recipe, 'id' | 'userId'>) => {
     if (!user) {
       alert('Você precisa estar logado para gerenciar receitas.');
       return;
     }
 
-    const newRecipe: Recipe = {
-      ...recipe,
-      id: `recipe_${Date.now()}`,
-      userId: user.id
-    };
+    try {
+      const { data, error } = await supabase
+        .from('bake_recipes')
+        .insert([
+          {
+            name: recipe.name,
+            category_id: recipe.categoryId,
+            yield: recipe.yield,
+            yield_unit: recipe.yieldUnit,
+            prep_time_minutes: recipe.prepTimeMinutes,
+            nodes: recipe.nodes,
+            user_id: user.id
+          }
+        ])
+        .select()
+        .single();
 
-    const localRecipesStr = localStorage.getItem('s7bake_user_recipes');
-    let localRecipes: Recipe[] = [];
-    if (localRecipesStr) {
-      try {
-        localRecipes = JSON.parse(localRecipesStr);
-      } catch (e) {}
+      if (error) throw error;
+
+      const newRecipe: Recipe = {
+        id: data.id,
+        name: data.name,
+        categoryId: data.category_id,
+        yield: data.yield,
+        yieldUnit: data.yield_unit,
+        prepTimeMinutes: data.prep_time_minutes,
+        nodes: data.nodes,
+        userId: data.user_id
+      };
+
+      setRecipes(prev => [...prev, newRecipe]);
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      alert('Erro ao criar receita.');
     }
-
-    localRecipes.push(newRecipe);
-    localStorage.setItem('s7bake_user_recipes', JSON.stringify(localRecipes));
-
-    // Update state
-    setRecipes(prev => [...prev, newRecipe]);
   };
 
-  const updateRecipe = (id: string, updates: Partial<Recipe>) => {
+  const updateRecipe = async (id: string, updates: Partial<Recipe>) => {
     if (!user) {
       alert('Você precisa estar logado para gerenciar receitas.');
       return;
     }
 
-    const localRecipesStr = localStorage.getItem('s7bake_user_recipes');
-    let localRecipes: Recipe[] = [];
-    if (localRecipesStr) {
-      try {
-        localRecipes = JSON.parse(localRecipesStr);
-      } catch (e) {}
+    try {
+      const dbUpdates: any = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
+      if (updates.yield !== undefined) dbUpdates.yield = updates.yield;
+      if (updates.yieldUnit !== undefined) dbUpdates.yield_unit = updates.yieldUnit;
+      if (updates.prepTimeMinutes !== undefined) dbUpdates.prep_time_minutes = updates.prepTimeMinutes;
+      if (updates.nodes !== undefined) dbUpdates.nodes = updates.nodes;
+
+      const { error } = await supabase
+        .from('bake_recipes')
+        .update(dbUpdates)
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setRecipes(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    } catch (error) {
+      console.error('Error updating recipe:', error);
+      alert('Erro ao atualizar receita.');
     }
-
-    const updatedLocal = localRecipes.map(r => r.id === id ? { ...r, ...updates } : r);
-    localStorage.setItem('s7bake_user_recipes', JSON.stringify(updatedLocal));
-
-    setRecipes(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
   };
 
-  const deleteRecipe = (id: string) => {
+  const deleteRecipe = async (id: string) => {
     if (!user) {
       alert('Você precisa estar logado para gerenciar receitas.');
       return;
     }
 
-    const localRecipesStr = localStorage.getItem('s7bake_user_recipes');
-    let localRecipes: Recipe[] = [];
-    if (localRecipesStr) {
-      try {
-        localRecipes = JSON.parse(localRecipesStr);
-      } catch (e) {}
+    try {
+      const { error } = await supabase
+        .from('bake_recipes')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setRecipes(prev => prev.filter(r => r.id !== id));
+    } catch (error) {
+      console.error('Error deleting recipe:', error);
+      alert('Erro ao excluir receita.');
     }
-
-    const updatedLocal = localRecipes.filter(r => r.id !== id);
-    localStorage.setItem('s7bake_user_recipes', JSON.stringify(updatedLocal));
-
-    setRecipes(prev => prev.filter(r => r.id !== id));
   };
 
-  return { recipes, addRecipe, updateRecipe, deleteRecipe };
+  return { recipes, addRecipe, updateRecipe, deleteRecipe, loading, fetchRecipes };
 }
