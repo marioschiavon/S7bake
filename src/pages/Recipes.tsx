@@ -43,11 +43,7 @@ export default function Recipes() {
   };
 
   const handleDeleteCategory = (categoryId: string, categoryName: string, recipeCount: number) => {
-    if (MOCK_CATEGORIES.some(c => c.id === categoryId)) {
-      alert('Não é possível excluir categorias padrão do sistema.');
-      return;
-    }
-    
+
     if (recipeCount > 0) {
       alert(`Não é possível excluir a categoria "${categoryName}" porque ela possui ${recipeCount} receita(s). Mova ou exclua as receitas primeiro.`);
       return;
@@ -59,12 +55,6 @@ export default function Recipes() {
   };
 
   const handleDeleteRecipe = (recipeId: string, recipeName: string) => {
-    // Check if it's a mock recipe (they shouldn't be deleted)
-    if (!recipeId.startsWith('recipe_')) {
-      alert('Não é possível excluir receitas padrão do sistema.');
-      return;
-    }
-
     if (window.confirm(`Tem certeza que deseja excluir a receita "${recipeName}"?`)) {
       deleteRecipe(recipeId);
     }
@@ -77,10 +67,6 @@ export default function Recipes() {
   };
 
   const openEditCategoryModal = (category: Category) => {
-    if (MOCK_CATEGORIES.some(c => c.id === category.id)) {
-      alert('Não é possível editar categorias padrão do sistema.');
-      return;
-    }
     setEditingCategory(category);
     setCategoryNameInput(category.name);
     setShowCategoryModal(true);
@@ -116,16 +102,14 @@ export default function Recipes() {
                 </span>
               </div>
               
-              {!MOCK_CATEGORIES.some(c => c.id === category.id) && (
-                <div className="flex space-x-2">
-                  <button onClick={() => openEditCategoryModal(category)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
-                    <Edit2 size={18} />
-                  </button>
-                  <button onClick={() => handleDeleteCategory(category.id, category.name, categoryRecipes.length)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              )}
+              <div className="flex space-x-2">
+                <button onClick={() => openEditCategoryModal(category)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                  <Edit2 size={18} />
+                </button>
+                <button onClick={() => handleDeleteCategory(category.id, category.name, categoryRecipes.length)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
