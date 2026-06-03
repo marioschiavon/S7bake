@@ -28,7 +28,10 @@ export function useRecipes() {
   }, [user]);
 
   const addRecipe = (recipe: Omit<Recipe, 'id' | 'userId'>) => {
-    if (!user) return;
+    if (!user) {
+      alert('Você precisa estar logado para gerenciar receitas.');
+      return;
+    }
 
     const newRecipe: Recipe = {
       ...recipe,
@@ -52,7 +55,10 @@ export function useRecipes() {
   };
 
   const updateRecipe = (id: string, updates: Partial<Recipe>) => {
-    if (!user) return;
+    if (!user) {
+      alert('Você precisa estar logado para gerenciar receitas.');
+      return;
+    }
 
     const localRecipesStr = localStorage.getItem('s7bake_user_recipes');
     let localRecipes: Recipe[] = [];
@@ -69,7 +75,10 @@ export function useRecipes() {
   };
 
   const deleteRecipe = (id: string) => {
-    if (!user) return;
+    if (!user) {
+      alert('Você precisa estar logado para gerenciar receitas.');
+      return;
+    }
 
     const localRecipesStr = localStorage.getItem('s7bake_user_recipes');
     let localRecipes: Recipe[] = [];

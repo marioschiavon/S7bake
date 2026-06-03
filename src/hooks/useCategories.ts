@@ -29,7 +29,10 @@ export function useCategories() {
   }, [user]);
 
   const addCategory = (name: string) => {
-    if (!user) return;
+    if (!user) {
+      alert('Você precisa estar logado para gerenciar categorias.');
+      return;
+    }
 
     const newCategory: Category = {
       id: `category_${Date.now()}`,
@@ -51,7 +54,10 @@ export function useCategories() {
   };
 
   const updateCategory = (id: string, newName: string) => {
-    if (!user) return;
+    if (!user) {
+      alert('Você precisa estar logado para gerenciar categorias.');
+      return;
+    }
 
     // We only update local storage categories. Mock categories are readonly in this MVP.
     const localCategoriesStr = localStorage.getItem('s7bake_user_categories');
@@ -69,7 +75,10 @@ export function useCategories() {
   };
 
   const deleteCategory = (id: string) => {
-    if (!user) return;
+    if (!user) {
+      alert('Você precisa estar logado para gerenciar categorias.');
+      return;
+    }
 
     // Remove from local storage
     const localCategoriesStr = localStorage.getItem('s7bake_user_categories');
