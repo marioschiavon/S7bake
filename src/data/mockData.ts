@@ -27,6 +27,7 @@ export interface Recipe {
   yieldUnit: string;
   prepTimeMinutes: number;
   nodes: WorkflowNode[];
+  userId?: string;
 }
 
 export interface Category {

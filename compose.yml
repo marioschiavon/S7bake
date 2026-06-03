@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  s7bake:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Passar essas variáveis no Dockploy (seção Build Args ou Variables)
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+    container_name: s7bake-frontend
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production

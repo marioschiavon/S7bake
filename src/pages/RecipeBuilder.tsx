@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MOCK_INGREDIENTS, MOCK_CATEGORIES } from '../data/mockData';
-import type { WorkflowNode } from '../data/mockData';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
+import { MOCK_INGREDIENTS } from '../data/mockData';
+import type { WorkflowNode, Recipe } from '../data/mockData';
 import { ArrowLeft, Save, Clock, List, AlignLeft, Trash2, GripVertical } from 'lucide-react';
+import { useRecipes } from '../hooks/useRecipes';
+import { useCategories } from '../hooks/useCategories';
 
 export default function RecipeBuilder() {
   const navigate = useNavigate();
+  const { recipes, addRecipe, updateRecipe } = useRecipes();
+  const { categories } = useCategories();
   const [searchParams] = useSearchParams();
+  const { recipeId } = useParams();
+  
   const initialCategoryId = searchParams.get('categoryId') || '';
 
   const [name, setName] = useState('');
@@ -16,6 +22,21 @@ export default function RecipeBuilder() {
   const [prepTime, setPrepTime] = useState<number>(60);
   
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
+  
+  // Load existing recipe if in edit mode
+  useEffect(() => {
+    if (recipeId) {
+      const existingRecipe = recipes.find(r => r.id === recipeId);
+      if (existingRecipe) {
+        setName(existingRecipe.name);
+        setCategoryId(existingRecipe.categoryId);
+        setRecipeYield(existingRecipe.yield);
+        setYieldUnit(existingRecipe.yieldUnit);
+        setPrepTime(existingRecipe.prepTimeMinutes);
+        setNodes(existingRecipe.nodes);
+      }
+    }
+  }, [recipeId, recipes]);
 
   const handleAddNode = (type: 'ingredients' | 'instruction' | 'timer') => {
     const newNode: WorkflowNode = {
@@ -76,6 +97,30 @@ export default function RecipeBuilder() {
     }));
   };
 
+  const handleSave = () => {
+    if (!name.trim() || !categoryId) {
+      alert('Preencha o nome e a categoria da receita.');
+      return;
+    }
+
+    const recipeData = {
+      name,
+      categoryId,
+      yield: recipeYield,
+      yieldUnit,
+      prepTimeMinutes: prepTime,
+      nodes,
+    };
+
+    if (recipeId) {
+      updateRecipe(recipeId, recipeData);
+    } else {
+      addRecipe(recipeData);
+    }
+    
+    navigate('/receitas');
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
       {/* Header */}
@@ -85,11 +130,16 @@ export default function RecipeBuilder() {
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Criar Template de Produção</h1>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {recipeId ? 'Editar Template de Produção' : 'Criar Template de Produção'}
+            </h1>
             <p className="text-slate-500 text-sm">Configure o cabeçalho e construa o fluxo da receita em blocos.</p>
           </div>
         </div>
-        <button className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center">
+        <button 
+          onClick={handleSave}
+          className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center"
+        >
           <Save size={20} className="mr-2" />
           Salvar
         </button>
@@ -117,7 +167,7 @@ export default function RecipeBuilder() {
               className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
             >
               <option value="" disabled>Selecione uma categoria...</option>
-              {MOCK_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
 

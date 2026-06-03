@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_RECIPES, MOCK_CATEGORIES, MOCK_INGREDIENTS } from '../data/mockData';
-import type { Category } from '../data/mockData';
-import { ChefHat, Clock, Tag, Plus, FolderPlus, MoreVertical } from 'lucide-react';
+import { MOCK_CATEGORIES, MOCK_INGREDIENTS } from '../data/mockData';
+import type { Category, Recipe } from '../data/mockData';
+import { useRecipes } from '../hooks/useRecipes';
+import { useCategories } from '../hooks/useCategories';
+import { ChefHat, Clock, Tag, Plus, FolderPlus, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 
 export default function Recipes() {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
+  const { recipes: allRecipes, deleteRecipe } = useRecipes();
+  const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
+  
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryNameInput, setCategoryNameInput] = useState('');
 
-  const calculateRecipeCost = (recipe: typeof MOCK_RECIPES[0]) => {
+  const calculateRecipeCost = (recipe: Recipe) => {
     const ingredientsNode = recipe.nodes.find(n => n.type === 'ingredients');
     if (!ingredientsNode || !ingredientsNode.ingredients) return 0;
     
@@ -22,12 +27,61 @@ export default function Recipes() {
     }, 0);
   };
 
-  const handleAddCategory = () => {
-    if (newCategoryName.trim()) {
-      setCategories([...categories, { id: Date.now().toString(), name: newCategoryName }]);
-      setNewCategoryName('');
+  const handleSaveCategory = () => {
+    if (categoryNameInput.trim()) {
+      if (editingCategory) {
+        updateCategory(editingCategory.id, categoryNameInput);
+      } else {
+        addCategory(categoryNameInput);
+      }
+      setCategoryNameInput('');
       setShowCategoryModal(false);
+      setEditingCategory(null);
     }
+  };
+
+  const handleDeleteCategory = (categoryId: string, categoryName: string, recipeCount: number) => {
+    if (MOCK_CATEGORIES.some(c => c.id === categoryId)) {
+      alert('Não é possível excluir categorias padrão do sistema.');
+      return;
+    }
+    
+    if (recipeCount > 0) {
+      alert(`Não é possível excluir a categoria "${categoryName}" porque ela possui ${recipeCount} receita(s). Mova ou exclua as receitas primeiro.`);
+      return;
+    }
+
+    if (window.confirm(`Tem certeza que deseja excluir a categoria "${categoryName}"?`)) {
+      deleteCategory(categoryId);
+    }
+  };
+
+  const handleDeleteRecipe = (recipeId: string, recipeName: string) => {
+    // Check if it's a mock recipe (they shouldn't be deleted)
+    if (!recipeId.startsWith('recipe_')) {
+      alert('Não é possível excluir receitas padrão do sistema.');
+      return;
+    }
+
+    if (window.confirm(`Tem certeza que deseja excluir a receita "${recipeName}"?`)) {
+      deleteRecipe(recipeId);
+    }
+  };
+
+  const openNewCategoryModal = () => {
+    setEditingCategory(null);
+    setCategoryNameInput('');
+    setShowCategoryModal(true);
+  };
+
+  const openEditCategoryModal = (category: Category) => {
+    if (MOCK_CATEGORIES.some(c => c.id === category.id)) {
+      alert('Não é possível editar categorias padrão do sistema.');
+      return;
+    }
+    setEditingCategory(category);
+    setCategoryNameInput(category.name);
+    setShowCategoryModal(true);
   };
 
   return (
@@ -38,7 +92,7 @@ export default function Recipes() {
           <p className="text-slate-500 mt-1">Gerencie seus templates de produção agrupados por categoria.</p>
         </div>
         <button 
-          onClick={() => setShowCategoryModal(true)}
+          onClick={openNewCategoryModal}
           className="bg-primary-50 text-primary-700 hover:bg-primary-100 px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors flex items-center"
         >
           <FolderPlus size={20} className="mr-2" />
@@ -47,16 +101,29 @@ export default function Recipes() {
       </div>
       
       {categories.map(category => {
-        const categoryRecipes = MOCK_RECIPES.filter(r => r.categoryId === category.id);
+        const categoryRecipes = allRecipes.filter(r => r.categoryId === category.id);
         
         return (
           <div key={category.id} className="space-y-4">
-            <div className="flex items-center space-x-2 px-2">
-              <Tag className="text-primary-500" size={24} />
-              <h2 className="text-2xl font-bold text-slate-800">{category.name}</h2>
-              <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full ml-2">
-                {categoryRecipes.length}
-              </span>
+            <div className="flex justify-between items-center px-2">
+              <div className="flex items-center space-x-2">
+                <Tag className="text-primary-500" size={24} />
+                <h2 className="text-2xl font-bold text-slate-800">{category.name}</h2>
+                <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full ml-2">
+                  {categoryRecipes.length}
+                </span>
+              </div>
+              
+              {!MOCK_CATEGORIES.some(c => c.id === category.id) && (
+                <div className="flex space-x-2">
+                  <button onClick={() => openEditCategoryModal(category)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                    <Edit2 size={18} />
+                  </button>
+                  <button onClick={() => handleDeleteCategory(category.id, category.name, categoryRecipes.length)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -82,9 +149,25 @@ export default function Recipes() {
                       <div className="p-3 bg-primary-50 rounded-xl text-primary-600 group-hover:bg-primary-100 transition-colors">
                         <ChefHat size={24} />
                       </div>
-                      <button className="text-slate-400 hover:text-slate-700 p-1">
-                        <MoreVertical size={20} />
-                      </button>
+                      <div className="relative group/menu">
+                        <button className="text-slate-400 hover:text-slate-700 p-1">
+                          <MoreVertical size={20} />
+                        </button>
+                        <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-lg border border-slate-100 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-10 flex flex-col overflow-hidden">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); navigate(`/receitas/editar/${recipe.id}`); }}
+                            className="px-4 py-2 text-left text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary-600 flex items-center"
+                          >
+                            <Edit2 size={14} className="mr-2" /> Editar
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteRecipe(recipe.id, recipe.name); }}
+                            className="px-4 py-2 text-left text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 flex items-center"
+                          >
+                            <Trash2 size={14} className="mr-2" /> Excluir
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     
                     <h3 className="font-bold text-xl text-slate-800 leading-tight mb-2 flex-1">{recipe.name}</h3>
@@ -116,21 +199,25 @@ export default function Recipes() {
         );
       })}
 
-      {/* Modal Nova Categoria */}
+      {/* Modal Categoria */}
       {showCategoryModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6">
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Nova Categoria</h2>
-              <p className="text-slate-500 mb-6">Crie uma nova categoria para agrupar suas receitas.</p>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
+              </h2>
+              <p className="text-slate-500 mb-6">
+                {editingCategory ? 'Altere o nome da sua categoria.' : 'Crie uma nova categoria para agrupar suas receitas.'}
+              </p>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">Nome da Categoria</label>
                   <input
                     type="text"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    value={categoryNameInput}
+                    onChange={(e) => setCategoryNameInput(e.target.value)}
                     placeholder="Ex: Bolos de Festa"
                     className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                     autoFocus
@@ -141,17 +228,20 @@ export default function Recipes() {
             
             <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end space-x-3">
               <button 
-                onClick={() => setShowCategoryModal(false)}
+                onClick={() => {
+                  setShowCategoryModal(false);
+                  setEditingCategory(null);
+                }}
                 className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors"
               >
                 Cancelar
               </button>
               <button 
-                onClick={handleAddCategory}
-                disabled={!newCategoryName.trim()}
+                onClick={handleSaveCategory}
+                disabled={!categoryNameInput.trim()}
                 className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
               >
-                Criar Categoria
+                {editingCategory ? 'Salvar Alterações' : 'Criar Categoria'}
               </button>
             </div>
           </div>

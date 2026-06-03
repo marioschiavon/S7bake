@@ -1,8 +1,16 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Home, BookOpen, PlayCircle } from 'lucide-react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Home, BookOpen, PlayCircle, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: Home },
@@ -36,6 +44,15 @@ export default function Layout() {
             </Link>
           ))}
         </nav>
+        <div className="p-4 border-t border-slate-100">
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-3 px-4 py-3 w-full rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 font-medium transition-colors"
+          >
+            <LogOut size={20} />
+            <span>Sair</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
