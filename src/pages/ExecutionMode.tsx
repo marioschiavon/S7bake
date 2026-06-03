@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { MOCK_RECIPES, MOCK_INGREDIENTS } from '../data/mockData';
+import { MOCK_RECIPES, MEASURE_UNITS } from '../data/mockData';
+import { useIngredients } from '../hooks/useIngredients';
 import { Check, CheckCircle2, Play, Pause, ChevronLeft, Flag } from 'lucide-react';
 
 export default function ExecutionMode() {
@@ -10,6 +11,7 @@ export default function ExecutionMode() {
   const qty = parseInt(searchParams.get('qty') || '1');
 
   const recipe = MOCK_RECIPES.find(r => r.id === recipeId);
+  const { ingredients: dbIngredients, loading: loadingIngredients } = useIngredients();
 
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
@@ -38,6 +40,7 @@ export default function ExecutionMode() {
   }, [isTimerRunning, timeLeft]);
 
   if (!recipe) return <div className="p-8 text-center text-white bg-slate-900 h-screen">Receita não encontrada.</div>;
+  if (loadingIngredients) return <div className="p-8 text-center text-white bg-slate-900 h-screen">Carregando produção...</div>;
 
   const nodes = recipe.nodes;
   const currentNode = nodes[currentNodeIndex];
@@ -70,7 +73,7 @@ export default function ExecutionMode() {
     .filter(n => n.type === 'ingredients')
     .flatMap(n => n.ingredients || [])
     .reduce((total, req) => {
-      const ing = MOCK_INGREDIENTS.find(i => i.id === req.ingredientId);
+      const ing = dbIngredients.find(i => i.id === req.ingredientId);
       if (!ing) return total;
       return total + ((ing.packagePrice / ing.packageSize) * req.quantity * qty);
     }, 0);
@@ -144,10 +147,20 @@ export default function ExecutionMode() {
               <h2 className="text-3xl sm:text-4xl font-bold mb-8 text-center text-white">Separe os Ingredientes</h2>
               <div className="space-y-3">
                 {currentNode.ingredients?.map(req => {
-                  const ing = MOCK_INGREDIENTS.find(i => i.id === req.ingredientId);
+                  const ing = dbIngredients.find(i => i.id === req.ingredientId);
                   const isChecked = checkedIngredients.has(req.ingredientId);
                   const totalQty = req.quantity * qty;
                   
+                  let displayStr = `${totalQty} ${ing?.unit}`;
+                  if (req.measureUnit && req.measureAmount && req.measureUnit !== 'g' && req.measureUnit !== 'ml' && req.measureUnit !== 'un') {
+                    const unitDef = MEASURE_UNITS.find(u => u.id === req.measureUnit);
+                    if (unitDef) {
+                      const measureName = unitDef.name.split(' (')[0];
+                      const totalMeasure = req.measureAmount * qty;
+                      displayStr = `${totalMeasure} ${measureName} (${totalQty}${ing?.unit})`;
+                    }
+                  }
+
                   return (
                     <div 
                       key={req.ingredientId}
@@ -169,7 +182,7 @@ export default function ExecutionMode() {
                         </span>
                       </div>
                       <span className={`text-xl font-bold ${isChecked ? 'text-slate-500' : 'text-primary-400'}`}>
-                        {totalQty} {ing?.unit}
+                        {displayStr}
                       </span>
                     </div>
                   );

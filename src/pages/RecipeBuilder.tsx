@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
-import { MOCK_INGREDIENTS } from '../data/mockData';
+import { MEASURE_UNITS } from '../data/mockData';
+import { useIngredients } from '../hooks/useIngredients';
 import type { WorkflowNode } from '../data/mockData';
 import { ArrowLeft, Save, Clock, List, AlignLeft, Trash2, GripVertical } from 'lucide-react';
 import { useRecipes } from '../hooks/useRecipes';
@@ -10,6 +11,7 @@ export default function RecipeBuilder() {
   const navigate = useNavigate();
   const { recipes, addRecipe, updateRecipe } = useRecipes();
   const { categories } = useCategories();
+  const { ingredients: dbIngredients } = useIngredients();
   const [searchParams] = useSearchParams();
   const { recipeId } = useParams();
   
@@ -66,19 +68,27 @@ export default function RecipeBuilder() {
       if (n.id === nodeId && n.type === 'ingredients') {
         const currentIngs = n.ingredients || [];
         if (!currentIngs.find(i => i.ingredientId === ingredientId)) {
-          return { ...n, ingredients: [...currentIngs, { ingredientId, quantity: 0 }] };
+          const ing = dbIngredients.find(i => i.id === ingredientId);
+          return { ...n, ingredients: [...currentIngs, { ingredientId, quantity: 0, measureAmount: 0, measureUnit: ing?.unit || 'g' }] };
         }
       }
       return n;
     }));
   };
 
-  const updateIngredientQuantity = (nodeId: string, ingredientId: string, quantity: number) => {
+  const updateIngredientMeasure = (nodeId: string, ingredientId: string, measureAmount: number, measureUnit: string) => {
     setNodes(nodes.map(n => {
       if (n.id === nodeId && n.type === 'ingredients') {
         return {
           ...n,
-          ingredients: n.ingredients?.map(i => i.ingredientId === ingredientId ? { ...i, quantity } : i)
+          ingredients: n.ingredients?.map(i => {
+            if (i.ingredientId === ingredientId) {
+              const unitDef = MEASURE_UNITS.find(u => u.id === measureUnit);
+              const factor = unitDef?.factor || 1;
+              return { ...i, measureAmount, measureUnit, quantity: measureAmount * factor };
+            }
+            return i;
+          })
         };
       }
       return n;
@@ -282,18 +292,26 @@ export default function RecipeBuilder() {
                       ) : (
                         <div className="space-y-2">
                           {node.ingredients?.map(req => {
-                            const ing = MOCK_INGREDIENTS.find(i => i.id === req.ingredientId);
+                            const ing = dbIngredients.find(i => i.id === req.ingredientId);
                             return (
                               <div key={req.ingredientId} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                 <span className="font-medium text-slate-700">{ing?.name}</span>
                                 <div className="flex items-center space-x-3">
                                   <input 
                                     type="number" 
-                                    value={req.quantity}
-                                    onChange={(e) => updateIngredientQuantity(node.id, req.ingredientId, parseFloat(e.target.value))}
+                                    value={req.measureAmount !== undefined ? req.measureAmount : req.quantity}
+                                    onChange={(e) => updateIngredientMeasure(node.id, req.ingredientId, parseFloat(e.target.value) || 0, req.measureUnit || ing?.unit || 'g')}
                                     className="w-24 p-1.5 border border-slate-200 rounded-md text-right focus:ring-2 focus:ring-primary-500 outline-none font-bold text-slate-700"
                                   />
-                                  <span className="text-slate-500 w-8 font-medium">{ing?.unit}</span>
+                                  <select
+                                    value={req.measureUnit || ing?.unit || 'g'}
+                                    onChange={(e) => updateIngredientMeasure(node.id, req.ingredientId, req.measureAmount !== undefined ? req.measureAmount : req.quantity, e.target.value)}
+                                    className="p-1.5 border border-slate-200 rounded-md text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none max-w-[150px]"
+                                  >
+                                    {MEASURE_UNITS.map(u => (
+                                      <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))}
+                                  </select>
                                   <button onClick={() => removeIngredient(node.id, req.ingredientId)} className="text-slate-400 hover:text-red-500 p-1">
                                     <Trash2 size={16} />
                                   </button>
@@ -315,7 +333,7 @@ export default function RecipeBuilder() {
                         }}
                       >
                         <option value="">+ Adicionar Ingrediente do Estoque...</option>
-                        {MOCK_INGREDIENTS.filter(i => !node.ingredients?.find(ni => ni.ingredientId === i.id)).map(ing => (
+                        {dbIngredients.filter(i => !node.ingredients?.find(ni => ni.ingredientId === i.id)).map(ing => (
                           <option key={ing.id} value={ing.id}>{ing.name}</option>
                         ))}
                       </select>

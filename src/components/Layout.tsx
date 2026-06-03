@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, PlayCircle, LogOut } from 'lucide-react';
+import { Home, BookOpen, PlayCircle, LogOut, Package } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout() {
@@ -15,6 +15,7 @@ export default function Layout() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: Home },
     { name: 'Receitas', path: '/receitas', icon: BookOpen },
+    { name: 'Estoque', path: '/ingredientes', icon: Package },
     { name: 'Produção', path: '/producao', icon: PlayCircle },
   ];
 

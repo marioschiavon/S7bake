@@ -9,6 +9,7 @@ import ProductionSetup from './pages/ProductionSetup';
 import ExecutionMode from './pages/ExecutionMode';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Ingredients from './pages/Ingredients';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
             <Route path="receitas" element={<Recipes />} />
             <Route path="receitas/nova" element={<RecipeBuilder />} />
             <Route path="receitas/editar/:recipeId" element={<RecipeBuilder />} />
+            <Route path="ingredientes" element={<Ingredients />} />
             <Route path="producao" element={<ProductionSetup />} />
           </Route>
           

@@ -9,7 +9,21 @@ export interface Ingredient {
 export interface RecipeIngredient {
   ingredientId: string;
   quantity: number;
+  measureUnit?: string;
+  measureAmount?: number;
 }
+
+export const MEASURE_UNITS = [
+  { id: 'g', name: 'Gramas (g)', type: 'base' },
+  { id: 'ml', name: 'Mililitros (ml)', type: 'base' },
+  { id: 'un', name: 'Unidade (un)', type: 'base' },
+  { id: 'xicara', name: 'Xícara (240g/ml)', type: 'household', factor: 240 },
+  { id: 'copo', name: 'Copo (200g/ml)', type: 'household', factor: 200 },
+  { id: 'colher_sopa', name: 'Colher de Sopa (15g/ml)', type: 'household', factor: 15 },
+  { id: 'colher_sobremesa', name: 'Colher de Sobremesa (10g/ml)', type: 'household', factor: 10 },
+  { id: 'colher_cha', name: 'Colher de Chá (5g/ml)', type: 'household', factor: 5 },
+  { id: 'colher_cafe', name: 'Colher de Café (2.5g/ml)', type: 'household', factor: 2.5 },
+];
 
 export interface WorkflowNode {
   id: string;
