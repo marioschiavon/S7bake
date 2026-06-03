@@ -15,3 +15,16 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+    networks:
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.s7bake.rule=Host(`bake.s7cloud.com.br`)"
+      - "traefik.http.routers.s7bake.entrypoints=websecure"
+      - "traefik.http.routers.s7bake.tls.certresolver=letsencrypt"
+      - "traefik.http.services.s7bake.loadbalancer.server.port=80"
+      - "traefik.docker.network=dokploy-network"
+
+networks:
+  dokploy-network:
+    external: true
