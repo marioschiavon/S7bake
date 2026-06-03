@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { MOCK_INGREDIENTS } from '../data/mockData';
-import type { WorkflowNode, Recipe } from '../data/mockData';
+import type { WorkflowNode } from '../data/mockData';
 import { ArrowLeft, Save, Clock, List, AlignLeft, Trash2, GripVertical } from 'lucide-react';
 import { useRecipes } from '../hooks/useRecipes';
 import { useCategories } from '../hooks/useCategories';
