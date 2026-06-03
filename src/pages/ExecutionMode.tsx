@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { MOCK_RECIPES, MEASURE_UNITS } from '../data/mockData';
+import { MEASURE_UNITS } from '../data/mockData';
+import { useRecipes } from '../hooks/useRecipes';
 import { useIngredients } from '../hooks/useIngredients';
 import { Check, CheckCircle2, Play, Pause, ChevronLeft, Flag } from 'lucide-react';
 
@@ -10,7 +11,8 @@ export default function ExecutionMode() {
   const navigate = useNavigate();
   const qty = parseInt(searchParams.get('qty') || '1');
 
-  const recipe = MOCK_RECIPES.find(r => r.id === recipeId);
+  const { recipes } = useRecipes();
+  const recipe = recipes.find(r => r.id === recipeId);
   const { ingredients: dbIngredients, loading: loadingIngredients } = useIngredients();
 
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);

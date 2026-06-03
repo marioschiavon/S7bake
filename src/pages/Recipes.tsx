@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_CATEGORIES, MOCK_INGREDIENTS } from '../data/mockData';
+import { MOCK_CATEGORIES } from '../data/mockData';
+import { useIngredients } from '../hooks/useIngredients';
 import type { Category, Recipe } from '../data/mockData';
 import { useRecipes } from '../hooks/useRecipes';
 import { useCategories } from '../hooks/useCategories';
@@ -10,6 +11,7 @@ export default function Recipes() {
   const navigate = useNavigate();
   const { recipes: allRecipes, deleteRecipe } = useRecipes();
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories();
+  const { ingredients: dbIngredients } = useIngredients();
   
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -20,7 +22,7 @@ export default function Recipes() {
     if (!ingredientsNode || !ingredientsNode.ingredients) return 0;
     
     return ingredientsNode.ingredients.reduce((total, req) => {
-      const ing = MOCK_INGREDIENTS.find(i => i.id === req.ingredientId);
+      const ing = dbIngredients.find(i => i.id === req.ingredientId);
       if (!ing) return total;
       const costPerUnit = ing.packagePrice / ing.packageSize;
       return total + (costPerUnit * req.quantity);

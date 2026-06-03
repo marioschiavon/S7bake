@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_CATEGORIES, MOCK_RECIPES } from '../data/mockData';
+import { MOCK_CATEGORIES } from '../data/mockData';
+import { useRecipes } from '../hooks/useRecipes';
 import { ChevronRight, PlayCircle } from 'lucide-react';
 
 export default function ProductionSetup() {
   const navigate = useNavigate();
+  const { recipes } = useRecipes();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
 
   const filteredRecipes = selectedCategory 
-    ? MOCK_RECIPES.filter(r => r.categoryId === selectedCategory)
+    ? recipes.filter(r => r.categoryId === selectedCategory)
     : [];
 
   const handleContinue = () => {
@@ -104,7 +106,7 @@ export default function ProductionSetup() {
               <div className="flex flex-col">
                 <span className="text-slate-500 font-bold text-lg">vezes (x)</span>
                 <span className="text-primary-600 text-sm font-medium">
-                  Rendimento total: {MOCK_RECIPES.find(r => r.id === selectedRecipe)!.yield * quantity} {MOCK_RECIPES.find(r => r.id === selectedRecipe)!.yieldUnit}
+                  Rendimento total: {recipes.find(r => r.id === selectedRecipe)!.yield * quantity} {recipes.find(r => r.id === selectedRecipe)!.yieldUnit}
                 </span>
               </div>
             </div>
