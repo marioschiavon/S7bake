@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { MEASURE_UNITS } from '../data/mockData';
 import { useRecipes } from '../hooks/useRecipes';
 import { useIngredients } from '../hooks/useIngredients';
-import { Check, CheckCircle2, Play, Pause, ChevronLeft, Flag } from 'lucide-react';
+import { Check, CheckCircle2, Play, Pause, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 
 export default function ExecutionMode() {
   const { recipeId } = useParams();
@@ -18,113 +18,100 @@ export default function ExecutionMode() {
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
 
-  // Swipe State
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const minSwipeDistance = 50;
-  
-  // Timer state
+
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [timerDone, setTimerDone] = useState(false);
 
   useEffect(() => {
     if (recipe && recipe.nodes[currentNodeIndex]?.type === 'timer') {
       setTimeLeft(recipe.nodes[currentNodeIndex].duration || 0);
       setIsTimerRunning(false);
+      setTimerDone(false);
     }
   }, [currentNodeIndex, recipe]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (isTimerRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
+      interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    } else if (isTimerRunning && timeLeft === 0) {
       setIsTimerRunning(false);
+      setTimerDone(true);
     }
     return () => clearInterval(interval);
   }, [isTimerRunning, timeLeft]);
 
-  if (!recipe) return <div className="p-8 text-center text-white bg-slate-900 h-screen">Receita não encontrada.</div>;
-  if (loadingIngredients) return <div className="p-8 text-center text-white bg-slate-900 h-screen">Carregando produção...</div>;
-
   const executionNodes = useMemo(() => {
     if (!recipe) return [];
-    const nodes = [];
-    if (recipe.ingredients && recipe.ingredients.length > 0) {
-      nodes.push({
-        id: 'mise-en-place',
-        type: 'ingredients' as const,
-        ingredients: recipe.ingredients
-      });
+    const nodes: any[] = [];
+    if (recipe.ingredients?.length) {
+      nodes.push({ id: 'mise-en-place', type: 'ingredients' as const, ingredients: recipe.ingredients });
     }
     nodes.push(...recipe.nodes);
     return nodes;
   }, [recipe]);
+
+  if (!recipe) return <div className="p-8 text-center text-white bg-slate-900 h-screen flex items-center justify-center">Receita não encontrada.</div>;
+  if (loadingIngredients) return <div className="p-8 text-center text-white bg-slate-900 h-screen flex items-center justify-center">Carregando produção...</div>;
 
   const nodes = executionNodes;
   const currentNode = nodes[currentNodeIndex];
   const isLastNode = currentNodeIndex === nodes.length - 1;
   const isFinished = currentNodeIndex >= nodes.length;
 
-  const handleNext = () => {
-    setCurrentNodeIndex(prev => prev + 1);
-  };
-
-  const toggleIngredient = (id: string) => {
-    const newSet = new Set(checkedIngredients);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setCheckedIngredients(newSet);
-  };
-
   const isCurrentNodeComplete = () => {
     if (!currentNode) return false;
     if (currentNode.type === 'ingredients') {
-      return currentNode.ingredients?.every(i => checkedIngredients.has(i.ingredientId)) ?? true;
+      return currentNode.ingredients?.every((i: any) => checkedIngredients.has(i.ingredientId)) ?? true;
     }
-    if (currentNode.type === 'timer') {
-      return true; // Allow manual override
-    }
-    return true; 
+    return true;
   };
 
-  const onTouchStartHandler = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+  const handleNext = () => setCurrentNodeIndex(prev => prev + 1);
+  const handlePrev = () => setCurrentNodeIndex(prev => Math.max(0, prev - 1));
+
+  const toggleIngredient = (id: string) => {
+    const newSet = new Set(checkedIngredients);
+    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
+    setCheckedIngredients(newSet);
   };
 
-  const onTouchMoveHandler = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEndHandler = () => {
+  const onTouchStart = (e: React.TouchEvent) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };
+  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && isCurrentNodeComplete() && !isLastNode) {
-      handleNext();
-    }
-    if (isRightSwipe && currentNodeIndex > 0) {
-      setCurrentNodeIndex(prev => prev - 1);
-    }
+    if (distance > minSwipeDistance && isCurrentNodeComplete() && !isLastNode) handleNext();
+    if (distance < -minSwipeDistance && currentNodeIndex > 0) handlePrev();
   };
 
-  const partialCost = recipe.ingredients?.reduce((total, req) => {
+  const totalCost = recipe.ingredients?.reduce((total, req) => {
     const ing = dbIngredients.find(i => i.id === req.ingredientId);
     if (!ing) return total;
-    // Assume mise-en-place means full cost is realized. If we wanted progressive cost, 
-    // we would check checkedIngredients, but since they separate all at once, full cost applies.
     return total + ((ing.packagePrice / ing.packageSize) * req.quantity * qty);
-  }, 0) || 0;
+  }, 0) ?? 0;
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  const formatQty = (req: any) => {
+    const ing = dbIngredients.find(i => i.id === req.ingredientId);
+    const totalQty = req.quantity * qty;
+    if (req.measureUnit && req.measureAmount && !['g', 'ml', 'un'].includes(req.measureUnit)) {
+      const unitDef = MEASURE_UNITS.find(u => u.id === req.measureUnit);
+      if (unitDef) {
+        const measureName = unitDef.name.split(' (')[0];
+        return `${req.measureAmount * qty} ${measureName} (${totalQty}${ing?.unit ?? ''})`;
+      }
+    }
+    return `${totalQty} ${ing?.unit ?? ''}`;
   };
 
   if (isFinished) {
@@ -135,19 +122,21 @@ export default function ExecutionMode() {
         </div>
         <h1 className="text-4xl font-bold mb-2 text-center">Produção Concluída!</h1>
         <p className="text-slate-400 text-xl mb-8 text-center">{recipe.name} • {recipe.yield * qty} {recipe.yieldUnit}</p>
-        
+
         <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm mb-8 border border-slate-700">
           <div className="flex justify-between items-center mb-4">
             <span className="text-slate-400">Custo Total:</span>
-            <span className="text-2xl font-bold text-red-400">R$ {partialCost.toFixed(2).replace('.', ',')}</span>
+            <span className="text-2xl font-bold text-red-400">R$ {totalCost.toFixed(2).replace('.', ',')}</span>
           </div>
           <div className="flex justify-between items-center pt-4 border-t border-slate-700">
             <span className="text-slate-400">Custo Unitário:</span>
-            <span className="text-xl font-bold text-slate-200">R$ {(partialCost / (recipe.yield * qty)).toFixed(2).replace('.', ',')}</span>
+            <span className="text-xl font-bold text-slate-200">
+              R$ {(totalCost / (recipe.yield * qty)).toFixed(2).replace('.', ',')}
+            </span>
           </div>
         </div>
 
-        <button 
+        <button
           onClick={() => navigate('/')}
           className="bg-primary-600 hover:bg-primary-500 text-white font-bold py-4 px-12 rounded-xl text-xl transition-colors"
         >
@@ -173,50 +162,41 @@ export default function ExecutionMode() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main 
-        className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto w-full pb-32 sm:pb-8 overflow-hidden"
-        onTouchStart={onTouchStartHandler}
-        onTouchMove={onTouchMoveHandler}
-        onTouchEnd={onTouchEndHandler}
+      {/* Main */}
+      <main
+        className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto w-full pb-32 overflow-y-auto"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
         {/* Progress bar */}
-        <div className="w-full bg-slate-800 rounded-full h-2 mb-8 overflow-hidden">
-          <div 
+        <div className="w-full bg-slate-800 rounded-full h-2 mb-8 overflow-hidden shrink-0">
+          <div
             className="bg-primary-500 h-full rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${((currentNodeIndex) / nodes.length) * 100}%` }}
-          ></div>
+            style={{ width: `${(currentNodeIndex / nodes.length) * 100}%` }}
+          />
         </div>
 
         {/* Node Content */}
         <div className="flex-1 flex flex-col justify-center animate-in fade-in slide-in-from-right-8 duration-300" key={currentNode.id}>
+
+          {/* ── MISE EN PLACE ── */}
           {currentNode.type === 'ingredients' && (
             <div className="space-y-4">
-              <h2 className="text-3xl sm:text-4xl font-bold mb-8 text-center text-white">Separe os Ingredientes</h2>
+              <div className="text-center mb-6">
+                <h2 className="text-3xl sm:text-4xl font-bold text-white">Separe os Ingredientes</h2>
+                <p className="text-slate-400 mt-2">Marque cada item conforme for separando</p>
+              </div>
               <div className="space-y-3">
-                {currentNode.ingredients?.map(req => {
+                {currentNode.ingredients?.map((req: any) => {
                   const ing = dbIngredients.find(i => i.id === req.ingredientId);
                   const isChecked = checkedIngredients.has(req.ingredientId);
-                  const totalQty = req.quantity * qty;
-                  
-                  let displayStr = `${totalQty} ${ing?.unit}`;
-                  if (req.measureUnit && req.measureAmount && req.measureUnit !== 'g' && req.measureUnit !== 'ml' && req.measureUnit !== 'un') {
-                    const unitDef = MEASURE_UNITS.find(u => u.id === req.measureUnit);
-                    if (unitDef) {
-                      const measureName = unitDef.name.split(' (')[0];
-                      const totalMeasure = req.measureAmount * qty;
-                      displayStr = `${totalMeasure} ${measureName} (${totalQty}${ing?.unit})`;
-                    }
-                  }
-
                   return (
-                    <div 
+                    <div
                       key={req.ingredientId}
                       onClick={() => toggleIngredient(req.ingredientId)}
                       className={`p-4 sm:p-5 rounded-2xl border-2 flex items-center justify-between cursor-pointer transition-all ${
-                        isChecked 
-                          ? 'border-green-500 bg-green-500/10' 
-                          : 'border-slate-700 bg-slate-800 hover:border-slate-600'
+                        isChecked ? 'border-green-500 bg-green-500/10' : 'border-slate-700 bg-slate-800 hover:border-slate-600'
                       }`}
                     >
                       <div className="flex items-center space-x-4">
@@ -226,53 +206,53 @@ export default function ExecutionMode() {
                           {isChecked && <Check size={18} className="text-white" />}
                         </div>
                         <span className={`text-xl font-medium transition-colors ${isChecked ? 'text-slate-400 line-through' : 'text-white'}`}>
-                          {ing?.name}
+                          {ing?.name ?? req.ingredientId}
                         </span>
                       </div>
                       <span className={`text-xl font-bold ${isChecked ? 'text-slate-500' : 'text-primary-400'}`}>
-                        {displayStr}
+                        {formatQty(req)}
                       </span>
                     </div>
                   );
                 })}
               </div>
+              {currentNode.ingredients && checkedIngredients.size < currentNode.ingredients.length && (
+                <p className="text-center text-slate-500 text-sm pt-2">
+                  {checkedIngredients.size} de {currentNode.ingredients.length} separados
+                </p>
+              )}
             </div>
           )}
 
+          {/* ── INSTRUÇÃO ── */}
           {currentNode.type === 'instruction' && (
-            <div className="text-center space-y-8">
-              <div className="w-24 h-24 mx-auto bg-slate-800 rounded-full flex items-center justify-center text-primary-400 shadow-inner">
-                <Flag size={48} />
+            <div className="space-y-8">
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto bg-slate-800 rounded-full flex items-center justify-center text-primary-400 mb-6">
+                  <Flag size={40} />
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+                  {currentNode.content}
+                </h2>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
-                {currentNode.content}
-              </h2>
-              
-              {currentNode.linkedIngredients && currentNode.linkedIngredients.length > 0 && (
-                <div className="mt-8 bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
-                  <h3 className="text-primary-400 font-bold mb-4 text-lg">Ingredientes deste passo:</h3>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {currentNode.linkedIngredients.map(ingId => {
+
+              {currentNode.linkedIngredients?.length > 0 && (
+                <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+                  <h3 className="text-primary-400 font-bold mb-4 text-base uppercase tracking-wider">Ingredientes deste passo</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {currentNode.linkedIngredients.map((ingId: string) => {
                       const req = recipe.ingredients?.find(i => i.ingredientId === ingId);
                       const ing = dbIngredients.find(i => i.id === ingId);
-                      if (!req || !ing) return null;
-                      
-                      const totalQty = req.quantity * qty;
-                      let displayStr = `${totalQty} ${ing.unit}`;
-                      if (req.measureUnit && req.measureAmount && req.measureUnit !== 'g' && req.measureUnit !== 'ml' && req.measureUnit !== 'un') {
-                        const unitDef = MEASURE_UNITS.find(u => u.id === req.measureUnit);
-                        if (unitDef) {
-                          const measureName = unitDef.name.split(' (')[0];
-                          const totalMeasure = req.measureAmount * qty;
-                          displayStr = `${totalMeasure} ${measureName} (${totalQty}${ing.unit})`;
-                        }
-                      }
-
+                      if (!ing) return null;
                       return (
-                        <div key={ingId} className="bg-slate-700/50 px-4 py-2 rounded-xl border border-slate-600 flex items-center gap-2">
+                        <div key={ingId} className="bg-slate-700/60 px-4 py-2.5 rounded-xl border border-slate-600 flex items-center gap-2">
                           <span className="text-white font-medium">{ing.name}</span>
-                          <span className="text-slate-400">·</span>
-                          <span className="text-primary-300 font-bold">{displayStr}</span>
+                          {req && (
+                            <>
+                              <span className="text-slate-500">·</span>
+                              <span className="text-primary-300 font-bold">{formatQty(req)}</span>
+                            </>
+                          )}
                         </div>
                       );
                     })}
@@ -282,58 +262,68 @@ export default function ExecutionMode() {
             </div>
           )}
 
+          {/* ── TIMER ── */}
           {currentNode.type === 'timer' && (
-            <div className="text-center space-y-10">
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-300">
-                {currentNode.content}
-              </h2>
-              
-              <div className="text-[5rem] sm:text-[7rem] font-black text-white tabular-nums tracking-tighter leading-none">
+            <div className="text-center space-y-8">
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-300">{currentNode.content}</h2>
+
+              <div className={`text-[5rem] sm:text-[7rem] font-black tabular-nums tracking-tighter leading-none transition-colors ${
+                timerDone ? 'text-green-400' : timeLeft <= 30 && timeLeft > 0 ? 'text-amber-400' : 'text-white'
+              }`}>
                 {formatTime(timeLeft)}
               </div>
 
-              <div className="flex justify-center">
-                <button
-                  onClick={() => setIsTimerRunning(!isTimerRunning)}
-                  className={`w-24 h-24 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${
-                    isTimerRunning ? 'bg-amber-500 hover:bg-amber-400' : 'bg-green-500 hover:bg-green-400'
-                  }`}
-                >
-                  {isTimerRunning ? <Pause size={40} /> : <Play size={40} className="ml-2" />}
-                </button>
-              </div>
+              {timerDone && (
+                <p className="text-green-400 font-bold text-xl animate-in fade-in duration-500">Tempo concluído! ✓</p>
+              )}
+
+              {!timerDone && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setIsTimerRunning(!isTimerRunning)}
+                    className={`w-24 h-24 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${
+                      isTimerRunning ? 'bg-amber-500 hover:bg-amber-400' : 'bg-green-500 hover:bg-green-400'
+                    }`}
+                  >
+                    {isTimerRunning ? <Pause size={40} /> : <Play size={40} className="ml-2" />}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-
       </main>
-      
-      {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-md border-t border-slate-800 p-4 pb-safe z-50">
-        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="hidden sm:flex bg-slate-950 px-5 py-4 rounded-xl border border-slate-800 items-center justify-between gap-4">
-            <span className="text-slate-500 text-sm font-medium uppercase tracking-wider">Custo Parcial</span>
-            <span className="text-red-400 font-bold text-xl tracking-wide">
-              R$ {partialCost.toFixed(2).replace('.', ',')}
-            </span>
+
+      {/* Bottom Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-4 z-50">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+          <button
+            onClick={handlePrev}
+            disabled={currentNodeIndex === 0}
+            className="py-3 px-5 rounded-xl font-bold flex items-center transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={22} />
+          </button>
+
+          <div className="hidden sm:flex flex-col items-center">
+            <span className="text-slate-500 text-xs font-medium uppercase tracking-wider">Custo</span>
+            <span className="text-red-400 font-bold text-lg">R$ {totalCost.toFixed(2).replace('.', ',')}</span>
           </div>
 
           <button
             onClick={handleNext}
             disabled={!isCurrentNodeComplete()}
-            className={`w-full sm:w-auto py-4 px-8 rounded-xl font-bold text-xl flex items-center justify-center transition-all ${
+            className={`flex-1 sm:flex-none py-4 px-8 rounded-xl font-bold text-lg flex items-center justify-center transition-all ${
               isCurrentNodeComplete()
                 ? 'bg-primary-600 hover:bg-primary-500 text-white shadow-[0_0_20px_rgba(213,90,104,0.3)] active:scale-95'
                 : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
             }`}
           >
-            <span>{isLastNode ? 'Finalizar Produção' : 'Próximo Passo'}</span>
-            {isLastNode ? <CheckCircle2 className="ml-2" size={24} /> : <ChevronRight className="ml-2" size={24} />}
+            <span>{isLastNode ? 'Finalizar' : 'Próximo'}</span>
+            {isLastNode ? <CheckCircle2 className="ml-2" size={22} /> : <ChevronRight className="ml-2" size={22} />}
           </button>
         </div>
       </div>
     </div>
   );
 }
-// Add this import that was missing
-import { ChevronRight } from 'lucide-react';

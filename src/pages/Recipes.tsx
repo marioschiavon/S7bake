@@ -18,14 +18,11 @@ export default function Recipes() {
   const [categoryNameInput, setCategoryNameInput] = useState('');
 
   const calculateRecipeCost = (recipe: Recipe) => {
-    const ingredientsNode = recipe.nodes.find(n => n.type === 'ingredients');
-    if (!ingredientsNode || !ingredientsNode.ingredients) return 0;
-    
-    return ingredientsNode.ingredients.reduce((total, req) => {
+    if (!recipe.ingredients?.length) return 0;
+    return recipe.ingredients.reduce((total, req) => {
       const ing = dbIngredients.find(i => i.id === req.ingredientId);
       if (!ing) return total;
-      const costPerUnit = ing.packagePrice / ing.packageSize;
-      return total + (costPerUnit * req.quantity);
+      return total + ((ing.packagePrice / ing.packageSize) * req.quantity);
     }, 0);
   };
 

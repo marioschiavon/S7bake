@@ -8,34 +8,32 @@ export function useRecipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const mapRow = (row: any): Recipe => ({
+    id: row.id,
+    name: row.name,
+    categoryId: row.category_id,
+    yield: row.yield,
+    yieldUnit: row.yield_unit,
+    prepTimeMinutes: row.prep_time_minutes,
+    ingredients: Array.isArray(row.ingredients) ? row.ingredients : [],
+    nodes: Array.isArray(row.nodes) ? row.nodes : [],
+    userId: row.user_id,
+  });
+
   const fetchRecipes = async () => {
     if (!user) {
       setRecipes([]);
       setLoading(false);
       return;
     }
-
     try {
       const { data, error } = await supabase
         .from('bake_recipes')
         .select('*')
-        .eq('user_id', user.id);
-
+        .eq('user_id', user.id)
+        .order('name');
       if (error) throw error;
-
-      const dbRecipes: Recipe[] = data.map((row: any) => ({
-        id: row.id,
-        name: row.name,
-        categoryId: row.category_id,
-        yield: row.yield,
-        yieldUnit: row.yield_unit,
-        prepTimeMinutes: row.prep_time_minutes,
-        ingredients: row.ingredients || [],
-        nodes: row.nodes || [],
-        userId: row.user_id
-      }));
-
-      setRecipes(dbRecipes);
+      setRecipes((data ?? []).map(mapRow));
     } catch (error) {
       console.error('Error fetching recipes:', error);
       setRecipes([]);
@@ -44,49 +42,28 @@ export function useRecipes() {
     }
   };
 
-  useEffect(() => {
-    fetchRecipes();
-  }, [user]);
+  useEffect(() => { fetchRecipes(); }, [user]);
 
   const addRecipe = async (recipe: Omit<Recipe, 'id' | 'userId'>) => {
-    if (!user) {
-      alert('Você precisa estar logado para gerenciar receitas.');
-      return;
-    }
-
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('bake_recipes')
-        .insert([
-          {
-            name: recipe.name,
-            category_id: recipe.categoryId,
-            yield: recipe.yield,
-            yield_unit: recipe.yieldUnit,
-            prep_time_minutes: recipe.prepTimeMinutes,
-            ingredients: recipe.ingredients || [],
-            nodes: recipe.nodes || [],
-            user_id: user.id
-          }
-        ])
+        .insert([{
+          name: recipe.name,
+          category_id: recipe.categoryId,
+          yield: recipe.yield,
+          yield_unit: recipe.yieldUnit,
+          prep_time_minutes: recipe.prepTimeMinutes,
+          ingredients: recipe.ingredients ?? [],
+          nodes: recipe.nodes ?? [],
+          user_id: user.id,
+        }])
         .select()
         .single();
-
       if (error) throw error;
-
-      const newRecipe: Recipe = {
-        id: data.id,
-        name: data.name,
-        categoryId: data.category_id,
-        yield: data.yield,
-        yieldUnit: data.yield_unit,
-        prepTimeMinutes: data.prep_time_minutes,
-        ingredients: data.ingredients || [],
-        nodes: data.nodes || [],
-        userId: data.user_id
-      };
-
-      setRecipes(prev => [...prev, newRecipe]);
+      setRecipes(prev => [...prev, mapRow(data)].sort((a, b) => a.name.localeCompare(b.name)));
+      return mapRow(data);
     } catch (error) {
       console.error('Error adding recipe:', error);
       alert('Erro ao criar receita.');
@@ -94,11 +71,7 @@ export function useRecipes() {
   };
 
   const updateRecipe = async (id: string, updates: Partial<Recipe>) => {
-    if (!user) {
-      alert('Você precisa estar logado para gerenciar receitas.');
-      return;
-    }
-
+    if (!user) return;
     try {
       const dbUpdates: any = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -114,9 +87,7 @@ export function useRecipes() {
         .update(dbUpdates)
         .eq('id', id)
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       setRecipes(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
     } catch (error) {
       console.error('Error updating recipe:', error);
@@ -125,20 +96,14 @@ export function useRecipes() {
   };
 
   const deleteRecipe = async (id: string) => {
-    if (!user) {
-      alert('Você precisa estar logado para gerenciar receitas.');
-      return;
-    }
-
+    if (!user) return;
     try {
       const { error } = await supabase
         .from('bake_recipes')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       setRecipes(prev => prev.filter(r => r.id !== id));
     } catch (error) {
       console.error('Error deleting recipe:', error);

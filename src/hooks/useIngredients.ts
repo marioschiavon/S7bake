@@ -9,26 +9,29 @@ export function useIngredients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const mapRow = (item: any): Ingredient => ({
+    id: item.id,
+    name: item.name,
+    packagePrice: item.package_price,
+    packageSize: item.package_size,
+    unit: item.unit as Ingredient['unit'],
+  });
+
   const fetchIngredients = async () => {
+    if (!user) {
+      setIngredients([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('bake_ingredients')
         .select('*')
+        .eq('user_id', user.id)
         .order('name');
-
       if (error) throw error;
-
-      if (data) {
-        const mapped = data.map(item => ({
-          id: item.id,
-          name: item.name,
-          packagePrice: item.package_price,
-          packageSize: item.package_size,
-          unit: item.unit as any
-        }));
-        setIngredients(mapped);
-      }
+      setIngredients((data ?? []).map(mapRow));
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching ingredients:', err);
@@ -37,16 +40,10 @@ export function useIngredients() {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchIngredients();
-    } else {
-      setIngredients([]);
-      setLoading(false);
-    }
-  }, [user]);
+  useEffect(() => { fetchIngredients(); }, [user]);
 
   const addIngredient = async (ingredient: Omit<Ingredient, 'id'>) => {
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('bake_ingredients')
@@ -54,24 +51,15 @@ export function useIngredients() {
           name: ingredient.name,
           package_price: ingredient.packagePrice,
           package_size: ingredient.packageSize,
-          unit: ingredient.unit
+          unit: ingredient.unit,
+          user_id: user.id,
         }])
         .select()
         .single();
-
       if (error) throw error;
-
-      if (data) {
-        const newIng = {
-          id: data.id,
-          name: data.name,
-          packagePrice: data.package_price,
-          packageSize: data.package_size,
-          unit: data.unit as any
-        };
-        setIngredients(prev => [...prev, newIng].sort((a, b) => a.name.localeCompare(b.name)));
-        return newIng;
-      }
+      const newIng = mapRow(data);
+      setIngredients(prev => [...prev, newIng].sort((a, b) => a.name.localeCompare(b.name)));
+      return newIng;
     } catch (err: any) {
       console.error('Error adding ingredient:', err);
       throw err;
@@ -79,6 +67,7 @@ export function useIngredients() {
   };
 
   const updateIngredient = async (id: string, updates: Partial<Ingredient>) => {
+    if (!user) return;
     try {
       const dbUpdates: any = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -90,20 +79,11 @@ export function useIngredients() {
         .from('bake_ingredients')
         .update(dbUpdates)
         .eq('id', id)
+        .eq('user_id', user.id)
         .select()
         .single();
-
       if (error) throw error;
-
-      if (data) {
-        setIngredients(prev => prev.map(i => i.id === id ? {
-          id: data.id,
-          name: data.name,
-          packagePrice: data.package_price,
-          packageSize: data.package_size,
-          unit: data.unit as any
-        } : i));
-      }
+      setIngredients(prev => prev.map(i => i.id === id ? mapRow(data) : i));
     } catch (err: any) {
       console.error('Error updating ingredient:', err);
       throw err;
@@ -111,14 +91,14 @@ export function useIngredients() {
   };
 
   const deleteIngredient = async (id: string) => {
+    if (!user) return;
     try {
       const { error } = await supabase
         .from('bake_ingredients')
         .delete()
-        .eq('id', id);
-
+        .eq('id', id)
+        .eq('user_id', user.id);
       if (error) throw error;
-
       setIngredients(prev => prev.filter(i => i.id !== id));
     } catch (err: any) {
       console.error('Error deleting ingredient:', err);
