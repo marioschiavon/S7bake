@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { MEASURE_UNITS } from '../data/mockData';
 import { useRecipes } from '../hooks/useRecipes';
@@ -49,7 +49,21 @@ export default function ExecutionMode() {
   if (!recipe) return <div className="p-8 text-center text-white bg-slate-900 h-screen">Receita não encontrada.</div>;
   if (loadingIngredients) return <div className="p-8 text-center text-white bg-slate-900 h-screen">Carregando produção...</div>;
 
-  const nodes = recipe.nodes;
+  const executionNodes = useMemo(() => {
+    if (!recipe) return [];
+    const nodes = [];
+    if (recipe.ingredients && recipe.ingredients.length > 0) {
+      nodes.push({
+        id: 'mise-en-place',
+        type: 'ingredients' as const,
+        ingredients: recipe.ingredients
+      });
+    }
+    nodes.push(...recipe.nodes);
+    return nodes;
+  }, [recipe]);
+
+  const nodes = executionNodes;
   const currentNode = nodes[currentNodeIndex];
   const isLastNode = currentNodeIndex === nodes.length - 1;
   const isFinished = currentNodeIndex >= nodes.length;
@@ -99,14 +113,13 @@ export default function ExecutionMode() {
     }
   };
 
-  const partialCost = nodes.slice(0, currentNodeIndex + 1)
-    .filter(n => n.type === 'ingredients')
-    .flatMap(n => n.ingredients || [])
-    .reduce((total, req) => {
-      const ing = dbIngredients.find(i => i.id === req.ingredientId);
-      if (!ing) return total;
-      return total + ((ing.packagePrice / ing.packageSize) * req.quantity * qty);
-    }, 0);
+  const partialCost = recipe.ingredients?.reduce((total, req) => {
+    const ing = dbIngredients.find(i => i.id === req.ingredientId);
+    if (!ing) return total;
+    // Assume mise-en-place means full cost is realized. If we wanted progressive cost, 
+    // we would check checkedIngredients, but since they separate all at once, full cost applies.
+    return total + ((ing.packagePrice / ing.packageSize) * req.quantity * qty);
+  }, 0) || 0;
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -234,6 +247,38 @@ export default function ExecutionMode() {
               <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
                 {currentNode.content}
               </h2>
+              
+              {currentNode.linkedIngredients && currentNode.linkedIngredients.length > 0 && (
+                <div className="mt-8 bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                  <h3 className="text-primary-400 font-bold mb-4 text-lg">Ingredientes deste passo:</h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {currentNode.linkedIngredients.map(ingId => {
+                      const req = recipe.ingredients?.find(i => i.ingredientId === ingId);
+                      const ing = dbIngredients.find(i => i.id === ingId);
+                      if (!req || !ing) return null;
+                      
+                      const totalQty = req.quantity * qty;
+                      let displayStr = `${totalQty} ${ing.unit}`;
+                      if (req.measureUnit && req.measureAmount && req.measureUnit !== 'g' && req.measureUnit !== 'ml' && req.measureUnit !== 'un') {
+                        const unitDef = MEASURE_UNITS.find(u => u.id === req.measureUnit);
+                        if (unitDef) {
+                          const measureName = unitDef.name.split(' (')[0];
+                          const totalMeasure = req.measureAmount * qty;
+                          displayStr = `${totalMeasure} ${measureName} (${totalQty}${ing.unit})`;
+                        }
+                      }
+
+                      return (
+                        <div key={ingId} className="bg-slate-700/50 px-4 py-2 rounded-xl border border-slate-600 flex items-center gap-2">
+                          <span className="text-white font-medium">{ing.name}</span>
+                          <span className="text-slate-400">·</span>
+                          <span className="text-primary-300 font-bold">{displayStr}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

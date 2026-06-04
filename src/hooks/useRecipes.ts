@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { MOCK_RECIPES } from '../data/mockData';
 import type { Recipe } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 
 export function useRecipes() {
   const { user } = useAuth();
-  const [recipes, setRecipes] = useState<Recipe[]>(MOCK_RECIPES);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchRecipes = async () => {
     if (!user) {
-      setRecipes(MOCK_RECIPES);
+      setRecipes([]);
       setLoading(false);
       return;
     }
@@ -31,14 +30,15 @@ export function useRecipes() {
         yield: row.yield,
         yieldUnit: row.yield_unit,
         prepTimeMinutes: row.prep_time_minutes,
-        nodes: row.nodes,
+        ingredients: row.ingredients || [],
+        nodes: row.nodes || [],
         userId: row.user_id
       }));
 
       setRecipes(dbRecipes);
     } catch (error) {
       console.error('Error fetching recipes:', error);
-      setRecipes(MOCK_RECIPES);
+      setRecipes([]);
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,8 @@ export function useRecipes() {
             yield: recipe.yield,
             yield_unit: recipe.yieldUnit,
             prep_time_minutes: recipe.prepTimeMinutes,
-            nodes: recipe.nodes,
+            ingredients: recipe.ingredients || [],
+            nodes: recipe.nodes || [],
             user_id: user.id
           }
         ])
@@ -80,7 +81,8 @@ export function useRecipes() {
         yield: data.yield,
         yieldUnit: data.yield_unit,
         prepTimeMinutes: data.prep_time_minutes,
-        nodes: data.nodes,
+        ingredients: data.ingredients || [],
+        nodes: data.nodes || [],
         userId: data.user_id
       };
 
@@ -104,6 +106,7 @@ export function useRecipes() {
       if (updates.yield !== undefined) dbUpdates.yield = updates.yield;
       if (updates.yieldUnit !== undefined) dbUpdates.yield_unit = updates.yieldUnit;
       if (updates.prepTimeMinutes !== undefined) dbUpdates.prep_time_minutes = updates.prepTimeMinutes;
+      if (updates.ingredients !== undefined) dbUpdates.ingredients = updates.ingredients;
       if (updates.nodes !== undefined) dbUpdates.nodes = updates.nodes;
 
       const { error } = await supabase

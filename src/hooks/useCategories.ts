@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { MOCK_CATEGORIES } from '../data/mockData';
-import type { Category } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
+import type { Category } from '../data/mockData';
 
 export function useCategories() {
   const { user } = useAuth();
-  const [categories, setCategories] = useState<Category[]>(MOCK_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchCategories = async () => {
     if (!user) {
-      setCategories(MOCK_CATEGORIES);
+      setCategories([]);
       setLoading(false);
       return;
     }
@@ -30,10 +30,10 @@ export function useCategories() {
       }));
 
       setCategories(dbCategories);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      // Fallback on error
-      setCategories(MOCK_CATEGORIES);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Error fetching categories:', err);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

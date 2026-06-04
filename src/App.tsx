@@ -10,7 +10,6 @@ import ExecutionMode from './pages/ExecutionMode';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Ingredients from './pages/Ingredients';
-import MigrationManager from './components/MigrationManager';
 
 function App() {
   return (
@@ -20,7 +19,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Register />} />
           
-          <Route path="/" element={<ProtectedRoute><MigrationManager /><Layout /></ProtectedRoute>}>
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="receitas" element={<Recipes />} />
             <Route path="receitas/nova" element={<RecipeBuilder />} />

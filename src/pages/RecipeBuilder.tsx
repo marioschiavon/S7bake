@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { MEASURE_UNITS } from '../data/mockData';
 import { useIngredients } from '../hooks/useIngredients';
-import type { WorkflowNode } from '../data/mockData';
+import type { WorkflowNode, RecipeIngredient } from '../data/mockData';
 import { ArrowLeft, Save, Clock, List, AlignLeft, Trash2, GripVertical } from 'lucide-react';
 import { useRecipes } from '../hooks/useRecipes';
 import { useCategories } from '../hooks/useCategories';
@@ -23,6 +23,7 @@ export default function RecipeBuilder() {
   const [yieldUnit, setYieldUnit] = useState('unidade(s)');
   const [prepTime, setPrepTime] = useState<number>(60);
   
+  const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([]);
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   
   // Load existing recipe if in edit mode
@@ -35,21 +36,21 @@ export default function RecipeBuilder() {
         setRecipeYield(existingRecipe.yield);
         setYieldUnit(existingRecipe.yieldUnit);
         setPrepTime(existingRecipe.prepTimeMinutes);
+        setRecipeIngredients(existingRecipe.ingredients || []);
         setNodes(existingRecipe.nodes);
       }
     }
   }, [recipeId, recipes]);
 
-  const handleAddNode = (type: 'ingredients' | 'instruction' | 'timer') => {
+  const handleAddNode = (type: 'instruction' | 'timer') => {
     const newNode: WorkflowNode = {
       id: `node_${Date.now()}`,
       type,
       content: '',
       duration: 0,
-      ingredients: []
+      linkedIngredients: []
     };
     
-    if (type === 'ingredients') newNode.content = 'Separe os ingredientes';
     if (type === 'timer') newNode.duration = 600; // 10 mins
 
     setNodes([...nodes, newNode]);
@@ -63,45 +64,45 @@ export default function RecipeBuilder() {
     setNodes(nodes.map(n => n.id === id ? { ...n, ...updates } : n));
   };
 
-  const addIngredientToNode = (nodeId: string, ingredientId: string) => {
+  const addGlobalIngredient = (ingredientId: string) => {
+    if (!recipeIngredients.find(i => i.ingredientId === ingredientId)) {
+      const ing = dbIngredients.find(i => i.id === ingredientId);
+      setRecipeIngredients([
+        ...recipeIngredients,
+        { ingredientId, quantity: 0, measureAmount: 0, measureUnit: ing?.unit || 'g' }
+      ]);
+    }
+  };
+
+  const updateGlobalIngredientMeasure = (ingredientId: string, measureAmount: number, measureUnit: string) => {
+    setRecipeIngredients(recipeIngredients.map(i => {
+      if (i.ingredientId === ingredientId) {
+        const unitDef = MEASURE_UNITS.find(u => u.id === measureUnit);
+        const factor = unitDef?.factor || 1;
+        return { ...i, measureAmount, measureUnit, quantity: measureAmount * factor };
+      }
+      return i;
+    }));
+  };
+
+  const removeGlobalIngredient = (ingredientId: string) => {
+    setRecipeIngredients(recipeIngredients.filter(i => i.ingredientId !== ingredientId));
+    // Also remove from linked ingredients in nodes
+    setNodes(nodes.map(n => ({
+      ...n,
+      linkedIngredients: n.linkedIngredients?.filter(id => id !== ingredientId)
+    })));
+  };
+
+  const toggleLinkedIngredient = (nodeId: string, ingredientId: string) => {
     setNodes(nodes.map(n => {
-      if (n.id === nodeId && n.type === 'ingredients') {
-        const currentIngs = n.ingredients || [];
-        if (!currentIngs.find(i => i.ingredientId === ingredientId)) {
-          const ing = dbIngredients.find(i => i.id === ingredientId);
-          return { ...n, ingredients: [...currentIngs, { ingredientId, quantity: 0, measureAmount: 0, measureUnit: ing?.unit || 'g' }] };
+      if (n.id === nodeId) {
+        const linked = n.linkedIngredients || [];
+        if (linked.includes(ingredientId)) {
+          return { ...n, linkedIngredients: linked.filter(id => id !== ingredientId) };
+        } else {
+          return { ...n, linkedIngredients: [...linked, ingredientId] };
         }
-      }
-      return n;
-    }));
-  };
-
-  const updateIngredientMeasure = (nodeId: string, ingredientId: string, measureAmount: number, measureUnit: string) => {
-    setNodes(nodes.map(n => {
-      if (n.id === nodeId && n.type === 'ingredients') {
-        return {
-          ...n,
-          ingredients: n.ingredients?.map(i => {
-            if (i.ingredientId === ingredientId) {
-              const unitDef = MEASURE_UNITS.find(u => u.id === measureUnit);
-              const factor = unitDef?.factor || 1;
-              return { ...i, measureAmount, measureUnit, quantity: measureAmount * factor };
-            }
-            return i;
-          })
-        };
-      }
-      return n;
-    }));
-  };
-
-  const removeIngredient = (nodeId: string, ingredientId: string) => {
-    setNodes(nodes.map(n => {
-      if (n.id === nodeId && n.type === 'ingredients') {
-        return {
-          ...n,
-          ingredients: n.ingredients?.filter(i => i.ingredientId !== ingredientId)
-        };
       }
       return n;
     }));
@@ -119,6 +120,7 @@ export default function RecipeBuilder() {
       yield: recipeYield,
       yieldUnit,
       prepTimeMinutes: prepTime,
+      ingredients: recipeIngredients,
       nodes,
     };
 
@@ -212,6 +214,69 @@ export default function RecipeBuilder() {
         </div>
       </div>
 
+      {/* Ingredientes Globais */}
+      <div className="glass-panel p-6 space-y-6 border-l-4 border-green-500">
+        <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center">
+          <List className="text-green-600 mr-2" size={20} />
+          Ingredientes da Receita
+        </h2>
+        <p className="text-sm text-slate-500">Adicione todos os ingredientes necessários para esta receita. Eles aparecerão no passo de "Mise en place" e poderão ser vinculados às instruções.</p>
+
+        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+          {recipeIngredients.length === 0 ? (
+            <p className="text-sm text-slate-500 italic text-center py-4">Nenhum ingrediente adicionado. Use a busca abaixo.</p>
+          ) : (
+            <div className="space-y-3">
+              {recipeIngredients.map(req => {
+                const ing = dbIngredients.find(i => i.id === req.ingredientId);
+                return (
+                  <div key={req.ingredientId} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm gap-3">
+                    <span className="font-medium text-slate-700">{ing?.name}</span>
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                      <input 
+                        type="number" 
+                        value={req.measureAmount !== undefined ? req.measureAmount : req.quantity}
+                        onChange={(e) => updateGlobalIngredientMeasure(req.ingredientId, parseFloat(e.target.value) || 0, req.measureUnit || ing?.unit || 'g')}
+                        className="w-20 sm:w-24 p-1.5 border border-slate-200 rounded-md text-right focus:ring-2 focus:ring-primary-500 outline-none font-bold text-slate-700"
+                      />
+                      <select
+                        value={req.measureUnit || ing?.unit || 'g'}
+                        onChange={(e) => updateGlobalIngredientMeasure(req.ingredientId, req.measureAmount !== undefined ? req.measureAmount : req.quantity, e.target.value)}
+                        className="p-1.5 border border-slate-200 rounded-md text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none max-w-[120px] sm:max-w-[150px]"
+                      >
+                        {MEASURE_UNITS.map(u => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => removeGlobalIngredient(req.ingredientId)} className="text-slate-400 hover:text-red-500 p-1.5">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        <div className="flex">
+          <select 
+            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none font-medium"
+            onChange={(e) => {
+              if (e.target.value) {
+                addGlobalIngredient(e.target.value);
+                e.target.value = ''; // reset after selection
+              }
+            }}
+          >
+            <option value="">+ Adicionar Ingrediente do Estoque...</option>
+            {dbIngredients.filter(i => !recipeIngredients.find(ri => ri.ingredientId === i.id)).map(ing => (
+              <option key={ing.id} value={ing.id}>{ing.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Editor de Fluxo */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -252,12 +317,39 @@ export default function RecipeBuilder() {
                 </div>
 
                 {node.type === 'instruction' && (
-                  <textarea
-                    value={node.content}
-                    onChange={(e) => updateNode(node.id, { content: e.target.value })}
-                    placeholder="Digite a instrução clara para o operador... (ex: Sove a massa até ficar lisa)"
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none resize-none min-h-[100px]"
-                  />
+                  <div className="space-y-3">
+                    <textarea
+                      value={node.content}
+                      onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                      placeholder="Digite a instrução clara para o operador... (ex: Sove a massa até ficar lisa)"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none resize-none min-h-[100px]"
+                    />
+                    
+                    {recipeIngredients.length > 0 && (
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <p className="text-sm font-bold text-slate-600 mb-2">Ingredientes Usados Neste Passo:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {recipeIngredients.map(req => {
+                            const ing = dbIngredients.find(i => i.id === req.ingredientId);
+                            const isLinked = node.linkedIngredients?.includes(req.ingredientId);
+                            return (
+                              <button
+                                key={req.ingredientId}
+                                onClick={() => toggleLinkedIngredient(node.id, req.ingredientId)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                                  isLinked 
+                                    ? 'bg-green-100 border-green-300 text-green-800 shadow-sm' 
+                                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                                }`}
+                              >
+                                {ing?.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {node.type === 'timer' && (
@@ -284,62 +376,7 @@ export default function RecipeBuilder() {
                   </div>
                 )}
 
-                {node.type === 'ingredients' && (
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                      {node.ingredients?.length === 0 ? (
-                        <p className="text-sm text-slate-500 italic text-center py-2">Nenhum ingrediente adicionado. Use a busca abaixo.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {node.ingredients?.map(req => {
-                            const ing = dbIngredients.find(i => i.id === req.ingredientId);
-                            return (
-                              <div key={req.ingredientId} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                <span className="font-medium text-slate-700">{ing?.name}</span>
-                                <div className="flex items-center space-x-3">
-                                  <input 
-                                    type="number" 
-                                    value={req.measureAmount !== undefined ? req.measureAmount : req.quantity}
-                                    onChange={(e) => updateIngredientMeasure(node.id, req.ingredientId, parseFloat(e.target.value) || 0, req.measureUnit || ing?.unit || 'g')}
-                                    className="w-24 p-1.5 border border-slate-200 rounded-md text-right focus:ring-2 focus:ring-primary-500 outline-none font-bold text-slate-700"
-                                  />
-                                  <select
-                                    value={req.measureUnit || ing?.unit || 'g'}
-                                    onChange={(e) => updateIngredientMeasure(node.id, req.ingredientId, req.measureAmount !== undefined ? req.measureAmount : req.quantity, e.target.value)}
-                                    className="p-1.5 border border-slate-200 rounded-md text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none max-w-[150px]"
-                                  >
-                                    {MEASURE_UNITS.map(u => (
-                                      <option key={u.id} value={u.id}>{u.name}</option>
-                                    ))}
-                                  </select>
-                                  <button onClick={() => removeIngredient(node.id, req.ingredientId)} className="text-slate-400 hover:text-red-500 p-1">
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex">
-                      <select 
-                        className="w-full p-3 bg-white border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none font-medium"
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            addIngredientToNode(node.id, e.target.value);
-                            e.target.value = ''; // reset after selection
-                          }
-                        }}
-                      >
-                        <option value="">+ Adicionar Ingrediente do Estoque...</option>
-                        {dbIngredients.filter(i => !node.ingredients?.find(ni => ni.ingredientId === i.id)).map(ing => (
-                          <option key={ing.id} value={ing.id}>{ing.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
+                {/* Ingredients Node Removed */}
               </div>
             </div>
           ))}
@@ -347,13 +384,6 @@ export default function RecipeBuilder() {
 
         {/* Botões de Adição de Nós */}
         <div className="flex flex-col sm:flex-row gap-4 mt-6">
-          <button onClick={() => handleAddNode('ingredients')} className="flex-1 bg-white border-2 border-slate-200 hover:border-green-400 hover:bg-green-50 text-slate-700 hover:text-green-700 p-4 rounded-2xl flex flex-col items-center justify-center transition-all group shadow-sm">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <List className="text-green-600" />
-            </div>
-            <span className="font-bold">Adicionar Ingredientes</span>
-          </button>
-          
           <button onClick={() => handleAddNode('instruction')} className="flex-1 bg-white border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-700 hover:text-blue-700 p-4 rounded-2xl flex flex-col items-center justify-center transition-all group shadow-sm">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
               <AlignLeft className="text-blue-600" />
