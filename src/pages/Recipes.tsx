@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_CATEGORIES } from '../data/mockData';
+
 import { useIngredients } from '../hooks/useIngredients';
 import type { Category, Recipe } from '../data/mockData';
 import { useRecipes } from '../hooks/useRecipes';
@@ -187,9 +187,10 @@ export default function Recipes() {
 
       {/* Modal Categoria */}
       {showCategoryModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300 mt-10 sm:mt-0 flex flex-col max-h-[90vh]">
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden"></div>
+            <div className="p-6 overflow-y-auto pb-safe">
               <h2 className="text-2xl font-bold text-slate-800 mb-2">
                 {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
               </h2>

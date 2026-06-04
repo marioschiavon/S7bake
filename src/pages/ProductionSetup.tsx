@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_CATEGORIES } from '../data/mockData';
 import { useRecipes } from '../hooks/useRecipes';
+import { useCategories } from '../hooks/useCategories';
 import { ChevronRight, PlayCircle } from 'lucide-react';
 
 export default function ProductionSetup() {
   const navigate = useNavigate();
   const { recipes } = useRecipes();
+  const { categories } = useCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
@@ -36,7 +37,7 @@ export default function ProductionSetup() {
             Escolha a Categoria
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {MOCK_CATEGORIES.map(category => (
+            {categories.map(category => (
               <button
                 key={category.id}
                 onClick={() => {

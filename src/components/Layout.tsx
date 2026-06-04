@@ -72,23 +72,24 @@ export default function Layout() {
         </div>
 
         {/* Mobile Bottom Nav */}
-        <nav className="md:hidden flex items-center justify-around bg-white border-t border-slate-200 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex flex-col items-center px-4 py-3 transition-colors ${
-                location.pathname === item.path || (location.pathname.startsWith(item.path) && item.path !== '/')
-                  ? 'text-primary-600'
-                  : 'text-slate-400'
-              }`}
-            >
-              <item.icon size={24} strokeWidth={location.pathname === item.path ? 2.5 : 2} />
-              <span className={`text-[10px] mt-1 ${location.pathname === item.path ? 'font-semibold' : 'font-medium'}`}>
-                {item.name}
-              </span>
-            </Link>
-          ))}
+        <nav className="md:hidden flex items-center justify-around bg-white/80 backdrop-blur-md border-t border-slate-200 pb-safe pt-2 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] z-20 sticky bottom-0">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path || (location.pathname.startsWith(item.path) && item.path !== '/');
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex flex-col items-center justify-center w-full min-h-[56px] transition-all duration-200 ${isActive ? 'text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <div className={`p-1.5 rounded-full transition-all duration-300 ${isActive ? 'bg-primary-50 scale-110' : ''}`}>
+                  <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                </div>
+                <span className={`text-[10px] mt-0.5 transition-all duration-200 ${isActive ? 'font-bold' : 'font-medium'}`}>
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
         </nav>
       </main>
     </div>

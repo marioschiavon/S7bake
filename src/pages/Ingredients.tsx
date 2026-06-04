@@ -120,63 +120,109 @@ export default function Ingredients() {
             Nenhum ingrediente encontrado.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-xs font-bold tracking-wider">
-                  <th className="p-4">Nome</th>
-                  <th className="p-4">Embalagem</th>
-                  <th className="p-4">Preço (R$)</th>
-                  <th className="p-4">Custo Base</th>
-                  <th className="p-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredIngredients.map(ing => {
-                  const baseCost = ing.packagePrice / ing.packageSize;
-                  return (
-                    <tr key={ing.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-4 font-semibold text-slate-800">{ing.name}</td>
-                      <td className="p-4 text-slate-600">{ing.packageSize} {ing.unit}</td>
-                      <td className="p-4 font-medium text-slate-700">R$ {ing.packagePrice.toFixed(2).replace('.', ',')}</td>
-                      <td className="p-4 text-slate-500">
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase text-xs font-bold tracking-wider">
+                    <th className="p-4">Nome</th>
+                    <th className="p-4">Embalagem</th>
+                    <th className="p-4">Preço (R$)</th>
+                    <th className="p-4">Custo Base</th>
+                    <th className="p-4 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredIngredients.map(ing => {
+                    const baseCost = ing.packagePrice / ing.packageSize;
+                    return (
+                      <tr key={ing.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-semibold text-slate-800">{ing.name}</td>
+                        <td className="p-4 text-slate-600">{ing.packageSize} {ing.unit}</td>
+                        <td className="p-4 font-medium text-slate-700">R$ {ing.packagePrice.toFixed(2).replace('.', ',')}</td>
+                        <td className="p-4 text-slate-500">
+                          R$ {baseCost.toFixed(4).replace('.', ',')} / {ing.unit}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-end space-x-2">
+                            <button 
+                              onClick={() => openEditModal(ing)}
+                              className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(ing.id, ing.name)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden flex flex-col divide-y divide-slate-100">
+              {filteredIngredients.map(ing => {
+                const baseCost = ing.packagePrice / ing.packageSize;
+                return (
+                  <div key={ing.id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-slate-800 text-lg">{ing.name}</h3>
+                      <div className="flex items-center space-x-1">
+                        <button 
+                          onClick={() => openEditModal(ing)}
+                          className="p-2 text-slate-400 hover:text-primary-600 active:bg-primary-50 rounded-full transition-colors"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(ing.id, ing.name)}
+                          className="p-2 text-slate-400 hover:text-red-600 active:bg-red-50 rounded-full transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Embalagem:</span>
+                      <span className="font-medium text-slate-700">{ing.packageSize} {ing.unit}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Preço Total:</span>
+                      <span className="font-bold text-slate-700">R$ {ing.packagePrice.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div className="bg-slate-50 p-2.5 rounded-lg flex justify-between items-center text-xs mt-2">
+                      <span className="text-slate-500">Custo:</span>
+                      <span className="font-bold text-primary-600">
                         R$ {baseCost.toFixed(4).replace('.', ',')} / {ing.unit}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end space-x-2">
-                          <button 
-                            onClick={() => openEditModal(ing)}
-                            className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(ing.id, ing.name)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300 mt-10 sm:mt-0 flex flex-col max-h-[90vh]">
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden"></div>
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-xl font-bold text-slate-800">
                 {editingId ? 'Editar Ingrediente' : 'Novo Ingrediente'}
               </h2>
             </div>
             
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto pb-safe">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Ingrediente</label>
                 <input 

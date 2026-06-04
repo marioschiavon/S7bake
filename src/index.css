@@ -5,6 +5,25 @@
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
+    /* PWA Mobile Native Feel */
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Allow text selection in inputs */
+  input, textarea {
+    user-select: auto;
+    -webkit-user-select: auto;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 20px);
   }
 }
 

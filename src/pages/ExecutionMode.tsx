@@ -17,6 +17,11 @@ export default function ExecutionMode() {
 
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
+
+  // Swipe State
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
   
   // Timer state
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -69,6 +74,29 @@ export default function ExecutionMode() {
       return true; // Allow manual override
     }
     return true; 
+  };
+
+  const onTouchStartHandler = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMoveHandler = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && isCurrentNodeComplete() && !isLastNode) {
+      handleNext();
+    }
+    if (isRightSwipe && currentNodeIndex > 0) {
+      setCurrentNodeIndex(prev => prev - 1);
+    }
   };
 
   const partialCost = nodes.slice(0, currentNodeIndex + 1)
@@ -133,7 +161,12 @@ export default function ExecutionMode() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto w-full">
+      <main 
+        className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto w-full pb-32 sm:pb-8 overflow-hidden"
+        onTouchStart={onTouchStartHandler}
+        onTouchMove={onTouchMoveHandler}
+        onTouchEnd={onTouchEndHandler}
+      >
         {/* Progress bar */}
         <div className="w-full bg-slate-800 rounded-full h-2 mb-8 overflow-hidden">
           <div 
@@ -228,31 +261,32 @@ export default function ExecutionMode() {
           )}
         </div>
 
-        {/* Bottom Bar: Cost & Next Button */}
-        <div className="mt-8 pt-6 border-t border-slate-800 shrink-0">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="bg-slate-950 px-5 py-4 rounded-xl border border-slate-800 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-4">
-              <span className="text-slate-500 text-sm font-medium uppercase tracking-wider">Custo Parcial</span>
-              <span className="text-red-400 font-bold text-xl tracking-wide">
-                R$ {partialCost.toFixed(2).replace('.', ',')}
-              </span>
-            </div>
-
-            <button
-              onClick={handleNext}
-              disabled={!isCurrentNodeComplete()}
-              className={`w-full sm:w-auto py-4 px-8 rounded-xl font-bold text-xl flex items-center justify-center transition-all ${
-                isCurrentNodeComplete()
-                  ? 'bg-primary-600 hover:bg-primary-500 text-white shadow-[0_0_20px_rgba(213,90,104,0.3)] hover:shadow-[0_0_25px_rgba(213,90,104,0.5)] active:translate-y-0.5'
-                  : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-              }`}
-            >
-              <span>{isLastNode ? 'Finalizar Produção' : 'Próximo Passo'}</span>
-              {isLastNode ? <CheckCircle2 className="ml-2" size={24} /> : <ChevronRight className="ml-2" size={24} />}
-            </button>
-          </div>
-        </div>
       </main>
+      
+      {/* Sticky Bottom Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-md border-t border-slate-800 p-4 pb-safe z-50">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="hidden sm:flex bg-slate-950 px-5 py-4 rounded-xl border border-slate-800 items-center justify-between gap-4">
+            <span className="text-slate-500 text-sm font-medium uppercase tracking-wider">Custo Parcial</span>
+            <span className="text-red-400 font-bold text-xl tracking-wide">
+              R$ {partialCost.toFixed(2).replace('.', ',')}
+            </span>
+          </div>
+
+          <button
+            onClick={handleNext}
+            disabled={!isCurrentNodeComplete()}
+            className={`w-full sm:w-auto py-4 px-8 rounded-xl font-bold text-xl flex items-center justify-center transition-all ${
+              isCurrentNodeComplete()
+                ? 'bg-primary-600 hover:bg-primary-500 text-white shadow-[0_0_20px_rgba(213,90,104,0.3)] active:scale-95'
+                : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+            }`}
+          >
+            <span>{isLastNode ? 'Finalizar Produção' : 'Próximo Passo'}</span>
+            {isLastNode ? <CheckCircle2 className="ml-2" size={24} /> : <ChevronRight className="ml-2" size={24} />}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
