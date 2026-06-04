@@ -119,5 +119,5 @@ export function useCategories() {
     }
   };
 
-  return { categories, addCategory, updateCategory, deleteCategory, loading, fetchCategories };
+  return { categories, addCategory, updateCategory, deleteCategory, loading, error, fetchCategories };
 }
